@@ -1,0 +1,144 @@
+-------------------------------------------------------------------------------------- classe usuario
+
+public class Usuario {
+    private int id;
+    private String email;
+    private String senha;
+
+    public Usuario(String email, String senha) {
+        this.email = email;
+        this.senha = senha;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getSenha() {
+        return senha;
+    }
+
+    public void setSenha(String senha) {
+        this.senha = senha;
+    }
+    
+    
+}
+
+-------------------------------------------------------------------------------------- classe USUARIODAO
+
+public class UsuarioDAO {
+    public boolean registrarUsuario(Usuario usuario) {
+    String sql = "INSERT INTO usuarios (usuario, senha) VALUES (?, ?)";
+    //esse metodo deixa a senha incriptada
+    String senhaHash = BCrypt.hashpw(usuario.getSenha(), BCrypt.gensalt());
+
+    try (Connection conn = ConnectionSQL.conectar(); 
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+        
+        stmt.setString(1, usuario.getEmail());
+        stmt.setString(2, senhaHash);
+        stmt.executeUpdate();
+        return true;
+    } catch (SQLException e) {
+        e.printStackTrace();
+        return false;
+    }
+}
+    public boolean validarLogin(Usuario usuario) {
+    String sql = "SELECT senha FROM usuarios WHERE usuario = ?";
+
+    try (Connection conn = ConnectionSQL.conectar(); 
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+        
+        stmt.setString(1, usuario.getEmail());
+        ResultSet rs = stmt.executeQuery();
+
+        if (rs.next()) {
+            String senhaHash = rs.getString("senha");
+            //esse metodo compara as duas senhas
+            boolean login = BCrypt.checkpw(usuario.getSenha(), senhaHash);
+            if(login == true){
+                System.out.println("Logado com sucesso!");
+            } else {
+                System.out.println("Email ou senha incorretas!");
+            }
+            return login;
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+    return false;
+}
+    
+    public boolean atualizarSenha(String email, String novaSenha) {
+    String sql = "UPDATE usuarios SET senha = ? WHERE usuario = ?";
+    String senhaHash = BCrypt.hashpw(novaSenha, BCrypt.gensalt());
+
+    try (Connection conn = ConnectionSQL.conectar(); 
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+        
+        stmt.setString(1, senhaHash);
+        stmt.setString(2, email);
+        //comando para ver se achou alguem, caso contraio nao retorna nada
+        return stmt.executeUpdate() > 0;
+    } catch (SQLException e) {
+        e.printStackTrace();
+        return false;
+    }
+  }
+    
+    public List<Usuario> listarUsuarios() {
+    List<Usuario> usuarios = new ArrayList<>();
+    String sql = "SELECT usuario FROM usuarios";
+
+    try (Connection conn = ConnectionSQL.conectar(); 
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+        
+        ResultSet rs = stmt.executeQuery();
+        while (rs.next()) {
+            Usuario usuario = new Usuario(rs.getString("usuario"), ""); // senha não exibida
+            usuarios.add(usuario);
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+    return usuarios;
+}
+}
+
+-------------------------------------------------------------------------------------- classe LOGIN HASH
+
+public class LoginHash {
+
+    public static void main(String[] args) {
+        ConnectionSQL.conectar();
+        
+        Usuario fulano = new Usuario("fulano@gmail.com", "12345");
+        
+        UsuarioDAO usuarioDAO = new UsuarioDAO();
+        
+        //metodo apra registrar um novo usuario
+        //usuarioDAO.registrarUsuario(fulano);
+        
+        //metodo para validar login de tal
+        //usuarioDAO.validarLogin(fulano);
+        
+        //metodo para atualizar senha de tal email
+        usuarioDAO.atualizarSenha("fulano@gmail.com", "1234567");
+        
+    }
+}
+
